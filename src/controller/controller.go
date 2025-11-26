@@ -2,15 +2,16 @@
 package controller
 
 import (
-	"AALBox/src/controller/chip"
-	"AALBox/src/repo"
-	"AALBox/src/view"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"AALBox/src/controller/chip"
+	"AALBox/src/repo"
+	"AALBox/src/view"
 
 	"github.com/clausecker/nfc/v2"
 	"github.com/urfave/cli/v2"
@@ -64,14 +65,30 @@ func (control *Controller) Start() {
 			},
 			{
 				Name:  "remove",
-				Usage: "Delete a song from the database",
+				Usage: "Delete songs by tag (all) or a specific song (tag + path)",
 				Action: func(c *cli.Context) error {
 					tagId := c.Args().Get(0)
-					if err := control.SongRepo.RemoveSong(tagId); err != nil {
-						fmt.Println("Error deleting song:", err)
+					path := c.Args().Get(1)
+
+					if tagId == "" {
+						fmt.Println("Usage:")
+						fmt.Println("  aalbox remove <tagId>             # remove all songs for tag")
+						fmt.Println("  aalbox remove <tagId> <songPath>  # remove one song")
+						return nil
+					}
+
+					var err error
+					if path == "" {
+						err = control.SongRepo.RemoveAllSongs(tagId)
+					} else {
+						err = control.SongRepo.RemoveSong(tagId, path)
+					}
+
+					if err != nil {
+						fmt.Println("Error deleting song(s):", err)
 						return err
 					}
-					fmt.Println("Song removed successfully!")
+					fmt.Println("Song(s) removed successfully!")
 					return nil
 				},
 			},

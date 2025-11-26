@@ -5,6 +5,7 @@ package repo
 import (
 	"database/sql"
 	"fmt"
+
 	_ "github.com/lib/pq"
 )
 
@@ -28,11 +29,13 @@ func NewRepository() Repository {
 		panic(err)
 	}
 
-	// Create the table only if it does not exist
 	tableCreationQuery := `CREATE TABLE IF NOT EXISTS songs (
-		tag_id TEXT PRIMARY KEY,
-		song_path TEXT NOT NULL
-	)`
+    id SERIAL PRIMARY KEY,
+    tag_id TEXT NOT NULL,
+    song_path TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_songs_tag_id ON songs(tag_id);`
+
 	if _, err := db.Exec(tableCreationQuery); err != nil {
 		fmt.Println("Failed to create table:", err)
 	}
@@ -43,9 +46,12 @@ func NewRepository() Repository {
 }
 
 // GetSongPath retrieves the song path associated with a given word
-func (r *Repository) GetSongPath(tagId string) string {
+func (r *Repository) GetSongPath(tagID string) string {
 	var songPath string
-	err := r.Connection.QueryRow("SELECT song_path FROM songs WHERE tag_id = $1", tagId).Scan(&songPath)
+	err := r.Connection.QueryRow(
+		"SELECT song_path FROM songs WHERE tag_id = $1 ORDER BY random() LIMIT 1",
+		tagID,
+	).Scan(&songPath)
 	if err != nil {
 		return ""
 	}
@@ -53,13 +59,23 @@ func (r *Repository) GetSongPath(tagId string) string {
 }
 
 // AddSong adds a new song to the database
-func (r *Repository) AddSong(tagId, songPath string) error {
-	_, err := r.Connection.Exec("INSERT into songs (tag_id, song_path) VALUES ($1,$2)", tagId, songPath)
+func (r *Repository) AddSong(tagID, songPath string) error {
+	_, err := r.Connection.Exec(
+		"INSERT INTO songs (tag_id, song_path) VALUES ($1, $2)",
+		tagID, songPath,
+	)
 	return err
 }
 
-// RemoveSong deletes a song form the database
-func (r *Repository) RemoveSong(tagId string) error {
-	_, err := r.Connection.Exec("DELETE FROM songs WHERE tag_id =$1", tagId)
+func (r *Repository) RemoveSong(tagID, songPath string) error {
+	_, err := r.Connection.Exec(
+		"DELETE FROM songs WHERE tag_id = $1 AND song_path = $2",
+		tagID, songPath,
+	)
+	return err
+}
+
+func (r *Repository) RemoveAllSongs(tagID string) error {
+	_, err := r.Connection.Exec("DELETE FROM songs WHERE tag_id =$1", tagID)
 	return err
 }
